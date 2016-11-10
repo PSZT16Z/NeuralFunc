@@ -88,6 +88,7 @@ class MyFrame(wx.Frame):
         for title in menu_titles:
             self.menuIdTitle[wx.NewId()] = title
         self.isPointInputted = False
+        self.isPointDeleted = False
         self.isThreadRunning = True;
         self.trainIn = []
         self.trainOut = []
@@ -115,6 +116,8 @@ class MyFrame(wx.Frame):
         
         self.panel.Bind(wx.EVT_LEFT_DOWN, self.onLeftClick)
         self.panel.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
+        self.panel.Bind(wx.EVT_MIDDLE_DOWN, self.onMidDown)
+        self.panel.Bind(wx.EVT_MIDDLE_UP, self.onMidUp)
         self.panel.Bind(wx.EVT_PAINT, self.onPaint)
         self.panel.Bind(wx.EVT_MOTION, self.onMove)
 
@@ -172,25 +175,50 @@ class MyFrame(wx.Frame):
                 print(e)
         
     def onLeftClick(self, event):
-        pos = event.GetPosition()
-        self.posX = pos.x
-        self.posY1 = pos.y
-        self.isPointInputted = True
+        if not self.isPointDeleted:
+            pos = event.GetPosition()
+            self.posX = pos.x
+            self.posY1 = pos.y
+            self.isPointInputted = True
+
+    def onMidDown(self, event):
+        self.isPointDeleted = True
+
+    def onMidUp(self, event):
+        pos = event.GetPosition();
+        idx = -1
+        for i,x in enumerate(self.trainIn):
+            xDif = abs(x - pos.x)
+            y1Dif = abs(self.trainOut[i][0] - pos.y)
+            y2Dif = abs(self.trainOut[i][1] - pos.y)
+##            print('xDif={}, y1D={}, y2D={}, x={}, i={}'.format(xDif, y1Dif, y2Dif, x, i))
+            if xDif <= 10 and (y1Dif <= 10 or y2Dif <= 10):
+                idx = i
+                break
+
+        if idx > -1:
+##            print('point[{},{}] deleted!'.format(self.trainIn[idx], self.trainOut[i][0]))
+            del self.trainIn[idx]
+            del self.trainOut[idx]
+            del self.blueLines[idx]
+            del self.redLines[idx]
+        self.isPointDeleted = False
 
     def onRightClick(self, event):
-        if self.isPointInputted:
-            self.isPointInputted = False
-            self.posY2 = event.GetPosition().y
-            
-            self.blueLines.append([self.posX, self.posY1, el, el])
-            self.redLines.append([self.posX, self.posY2, el, el])
+        if not self.isPointDeleted:
+            if self.isPointInputted:
+                self.isPointInputted = False
+                self.posY2 = event.GetPosition().y
+                
+                self.blueLines.append([self.posX, self.posY1, el, el])
+                self.redLines.append([self.posX, self.posY2, el, el])
 
-            self.trainIn.append(self.posX)
-            self.trainOut.append([self.posY1, self.posY2])
-        else:
-            menu = NeuronPopupMenu(self, self.menuIdTitle, [self.ColorSelCb, self.onButton, self.onReset, self.CloseCb])
-            self.PopupMenu(menu, event.GetPosition())
-            menu.Destroy()
+                self.trainIn.append(self.posX)
+                self.trainOut.append([self.posY1, self.posY2])
+            else:
+                menu = NeuronPopupMenu(self, self.menuIdTitle, [self.ColorSelCb, self.onButton, self.onReset, self.CloseCb])
+                self.PopupMenu(menu, event.GetPosition())
+                menu.Destroy()
 
     def CloseCb(self, event):
         self.Close()
@@ -212,12 +240,19 @@ class MyFrame(wx.Frame):
         
     def onPaint(self, event):
         dc = wx.PaintDC(event.GetEventObject())
-        if self.isPointInputted is False:
-            blueL = self.blueLines
-            redL = self.redLines            
-        else:
+        
+        
+        if self.isPointInputted:
             blueL = self.blueLines + [[self.posX, self.posY1, el, el]]
             redL = self.redLines + [[self.posX, self.mouseY, el, el]]
+        else:
+            blueL = self.blueLines
+            redL = self.redLines
+            if self.isPointDeleted:
+                dc.SetPen(wx.Pen('black', 1))
+                dc.SetBrush(wx.Brush('black', wx.CROSSDIAG_HATCH))
+                dc.DrawCircle(self.mouseX, self.mouseY, 10)
+                dc.SetBrush(wx.Brush('black', wx.TRANSPARENT))
 
         dc.SetPen(wx.Pen(self.colors[0], 1))
         dc.DrawEllipseList(blueL)
@@ -232,7 +267,7 @@ class MyFrame(wx.Frame):
         self.mouseX = pos.x
         self.mouseY = pos.y
         self.posRelease.SetValue("%s, %s" % (self.mouseX, self.mouseY))
-        if self.isPointInputted is True:
+        if self.isPointInputted or self.isPointDeleted:
             self.Refresh()
 
 
