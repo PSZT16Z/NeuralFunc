@@ -1,13 +1,97 @@
 import wx
-from neuron import Neuron
+import time
 import numpy as np
+import threading
+from neuron import Neuron
+
+refreshStep = 4000
+el = 4
+
+class NeuronPopupMenu(wx.Menu):
+    def __init__(self, parent, idTitleMap, cbList):
+        assert(len(idTitleMap) == len(cbList))
+        super(NeuronPopupMenu, self).__init__()
+        self.parent = parent
+        for cbNo,(id,title) in enumerate(idTitleMap.items()):
+            item = wx.MenuItem(self, id, title)
+            self.AppendItem(item)
+            self.Bind(wx.EVT_MENU, cbList[cbNo], item)
+
+class PlotColorDialog(wx.Dialog):
+    def __init__(self, parent, colorList, titleList):
+        super(PlotColorDialog, self).__init__(parent, title = 'Change plot colours', size = (200,200))
+        self.colors = colorList
+        self.titles = titleList
+        self.ids = []
+        panel = wx.Panel(self) 
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        vbox.Add((0,10))
+        hboxs = [ wx.BoxSizer(wx.HORIZONTAL), wx.BoxSizer(wx.HORIZONTAL), wx.BoxSizer(wx.HORIZONTAL), wx.BoxSizer(wx.HORIZONTAL) ]
+        self.colBox = [None, None, None, None]
+        spacer = 0
+        for x in range(len(colorList)):
+            text = wx.TextCtrl(panel,style = wx.TE_READONLY, size=(40,25))
+            text.SetValue(titleList[x])
+            self.ids.append(wx.NewId())
+            btn = wx.Button(panel, self.ids[-1], size=(50,25),label = "Change")
+
+            self.Bind(wx.EVT_BUTTON, self.OnClickCbDud, btn)
+            self.colBox[x] = wx.Panel(panel, size=(25,25))
+            self.colBox[x].SetBackgroundColour(colorList[x])
+            hboxs[x].Add(text, proportion = 0, flag = wx.ALIGN_LEFT)
+            hboxs[x].Add((20,0))
+            hboxs[x].Add(self.colBox[x], proportion = 0, flag = wx.ALIGN_CENTRE)
+            hboxs[x].Add((40,0))
+            hboxs[x].Add(btn, proportion = 0, flag = wx.ALIGN_RIGHT)
+ 
+            vbox.Add(hboxs[x], flag = wx.ALIGN_CENTRE)
+            if x % 2 == 0:
+                spacer = 10
+            else:
+                spacer = 30
+            vbox.Add((0, spacer))
+                
+        panel.SetSizer(vbox) 
+        self.Centre() 
+        self.Show(True)
+
+    def refreshColours(self):
+        for x in range(len(self.colors)):
+            self.colBox[x].SetBackgroundColour(self.colors[x])
+        self.Refresh()
+        
+    def OnClickCbDud(self, event):
+        dialog = wx.ColourDialog(None)
+        dialog.GetColourData().SetChooseFull(False)
+        if dialog.ShowModal() == wx.ID_OK:
+            data = dialog.GetColourData().GetColour().Get()
+            idx = self.ids.index(event.GetId())
+            self.colors[idx].Set(data[0],data[1],data[2])
+            self.refreshColours()
+        dialog.Destroy()
+        
 
 class MyFrame(wx.Frame):
     
-    panel = None
-    isPointInputted = False
-
     def __init__(self):
+        self.colors = [
+            wx.Colour(0,0,153),
+            wx.Colour(102,178,255),
+            wx.Colour(0,153,0),
+            wx.Colour(102,255,102) ]
+        self.titles = ['Pnt1', 'Plot1', 'Pnt2', 'Plot2']
+        menu_titles = [ "Plot colours",
+                "NN structure",
+                "Reset",
+                "Quit" ]
+        self.menuIdTitle = {}
+        for title in menu_titles:
+            self.menuIdTitle[wx.NewId()] = title
+        self.isPointInputted = False
+        self.isThreadRunning = True;
+        self.trainIn = []
+        self.trainOut = []
+
         self.blueLines = []
         self.redLines=[]
         self.mouseX = 0
@@ -15,54 +99,77 @@ class MyFrame(wx.Frame):
         self.posX = 0
         self.posY1 = 0
         self.posY2 = 0
+        self.solver = None
+        self.th = None
         
         self.frame = wx.Frame.__init__(self, None, title='NN function approx', size=(500,500))
-        panel = wx.Panel(self, -1)
-        
-        self.button = wx.Button(panel, label="Change NN structure", pos=(250, 10))
-        self.button.Bind(wx.EVT_BUTTON, self.onButton)
-        wx.StaticText(panel, -1, "Pos:", pos=(10, 12))
-        self.posRelease = wx.TextCtrl(panel, -1, "", pos=(40, 10))
-        
-        panel.Bind(wx.EVT_LEFT_DOWN, self.onLeftClick)
-        panel.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
-        panel.Bind(wx.EVT_PAINT, self.onPaint)
-        panel.Bind(wx.EVT_MOTION, self.onMove)
-        self.neuronNet = None
+        self.Bind(wx.EVT_CLOSE, self.onCloseCb)
+        self.panel = wx.Panel(self, -1)
+        self.initPanel()
         self.initNN()
+        self.restartNetThread(True)
 
-    def initNN(self, synList = [1, 10, 10, 2], useOldData = False):
-        oldTrainIn = None
-        oldTrainOut = None
-        if useOldData:
-            oldTrainIn = self.neuronNet.trainingSet
-            oldTrainOut = self.neuronNet.trainingVals
- 
-        self.neuronNet = Neuron(synList)
-##        if useOldData:
-##            self.neuronNet.trainingSet = oldTrainIn
-##            self.neuronNet.trainingVals = oldTrainOut
-##            self.neuronNet.train()
-         
-        if useOldData:
-            for x in range(len(oldTrainIn)):
-                self.neuronNet.addTrainingData(oldTrainIn[x], oldTrainOut[x])
-                self.Refresh()
+    def initPanel(self):
+        wx.StaticText(self.panel, -1, "Pos:", pos=(10, 12))
+        self.posRelease = wx.TextCtrl(self.panel, -1, "", pos=(40, 10))
+        
+        self.panel.Bind(wx.EVT_LEFT_DOWN, self.onLeftClick)
+        self.panel.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
+        self.panel.Bind(wx.EVT_PAINT, self.onPaint)
+        self.panel.Bind(wx.EVT_MOTION, self.onMove)
+
+    def onCloseCb(self, event):
+        self.restartNetThread()
+        self.Destroy()
+
+    def initNN(self, synList = [1, 10, 10, 2]):
+        self.solver = Neuron(0, self.GetSize().GetHeight(), self.trainIn, self.trainOut, synList)
+
+    def restartNetThread(self, runIt = False):
+        if self.th is not None and self.th.isAlive():
+            self.isThreadRunning = False
+            self.th.join()
+        self.th = threading.Thread(None, self.trainLoop)
+        self.th.daemon = True
+        self.isThreadRunning = True
+        if runIt:
+            self.th.start()
+        
+    def trainLoop(self):
+        while self.isThreadRunning:
+            for _ in xrange(refreshStep):
+                self.solver.train()
+            self.Refresh()
+
+    def drawPlot(self, dc):
+        if len(self.trainIn) > 0:
+            ptsB = []
+            ptsR = []
+            px = np.array([range(500)])
+            z = self.solver.predict(px.T)
+            for x, pz in enumerate(z):
+                ptsB.append(wx.Point(x, pz[0]))
+                ptsR.append(wx.Point(x, pz[1]))
+
+            dc.SetPen(wx.Pen(self.colors[1], 1))
+            dc.DrawLines(ptsB)
+            dc.SetPen(wx.Pen(self.colors[3], 1))
+            dc.DrawLines(ptsR)
 
     def onButton(self, event):
         dlg = wx.TextEntryDialog(self.frame, 'Enter layer list for NN', 'NN structure edit')
         dlg.SetValue = '10, 10'
         if dlg.ShowModal() == wx.ID_OK:
-            layerList = [int(k) for k in dlg.GetValue().split(',')]
-            layerList = [1] + layerList + [2]
-            print(layerList)
-            dlg.Destroy()
-##            dlg2 = wx.Dialog(self, title='Training new NN')
-##            wx.StaticText(dlg2, -1, 'NN is being restructurized and trained.\nPlease wait.', pos=(10,12))
-##            dlg2.Show()
-            self.initNN(layerList, True)
-##            dlg2.Destroy()
-            self.Refresh()
+            try:
+                layerList = [int(k) for k in dlg.GetValue().split(',')]
+                layerList = [1] + layerList + [2]
+                print(layerList)
+                dlg.Destroy()
+                self.restartNetThread()
+                self.initNN(layerList)
+                self.th.start()
+            except Exception as e:
+                print(e)
         
     def onLeftClick(self, event):
         pos = event.GetPosition()
@@ -71,51 +178,54 @@ class MyFrame(wx.Frame):
         self.isPointInputted = True
 
     def onRightClick(self, event):
-        self.isPointInputted = False
-        pos = event.GetPosition()
-        self.posY2 = pos.y
-        
-        self.blueLines.append([self.posX, self.posY1, self.posX, self.posY1])
-        self.redLines.append([self.posX, self.posY2, self.posX, self.posY2])
-        
-        newIn = [self.posX / 500.0]
-        newOut = [self.posY1 / 500.0, self.posY2/500.0]
-        self.neuronNet.addTrainingData(newIn, newOut)
-        
-        self.Refresh()
+        if self.isPointInputted:
+            self.isPointInputted = False
+            self.posY2 = event.GetPosition().y
+            
+            self.blueLines.append([self.posX, self.posY1, el, el])
+            self.redLines.append([self.posX, self.posY2, el, el])
 
+            self.trainIn.append(self.posX)
+            self.trainOut.append([self.posY1, self.posY2])
+        else:
+            menu = NeuronPopupMenu(self, self.menuIdTitle, [self.ColorSelCb, self.onButton, self.onReset, self.CloseCb])
+            self.PopupMenu(menu, event.GetPosition())
+            menu.Destroy()
+
+    def CloseCb(self, event):
+        self.Close()
+
+    def onReset(self, event):
+        self.restartNetThread()
+        del self.blueLines[:]
+        del self.redLines[:]
+        del self.trainIn[:]
+        del self.trainOut[:]
+        self.initNN()
+        self.th.start()
+
+    def ColorSelCb(self, event):
+        dialog = PlotColorDialog(self.frame, self.colors, self.titles)
+        if dialog.ShowModal() == wx.ID_OK:
+            pass
+        dialog.Destroy()
+        
     def onPaint(self, event):
         dc = wx.PaintDC(event.GetEventObject())
         if self.isPointInputted is False:
             blueL = self.blueLines
             redL = self.redLines            
         else:
-            blueL = self.blueLines + [[self.posX, self.posY1, self.posX, self.posY1]]
-            redL = self.redLines + [[self.posX, self.mouseY, self.posX, self.mouseY]]
+            blueL = self.blueLines + [[self.posX, self.posY1, el, el]]
+            redL = self.redLines + [[self.posX, self.mouseY, el, el]]
 
-        dc.SetPen(wx.Pen('blue', 4))
-        dc.DrawLineList(blueL)
-        dc.SetPen(wx.Pen('red', 4))
-        dc.DrawLineList(redL)
+        dc.SetPen(wx.Pen(self.colors[0], 1))
+        dc.DrawEllipseList(blueL)
+        dc.SetPen(wx.Pen(self.colors[2], 1))
+        dc.DrawEllipseList(redL)
 
         if self.isPointInputted is False:
             self.drawPlot(dc)
-
-    def drawPlot(self, dc):
-        ptsB = []
-        ptsR = []
-        pen = []
-        px = np.array( [ np.linspace(0, 1, num = 500) ])
-        z = self.neuronNet.predict(px.T)
-        z = z * 500.0
-        for x, pz in enumerate(z):
-            ptsB.append(wx.Point(x, pz[0]))
-            ptsR.append(wx.Point(x, pz[1]))
-
-        dc.SetPen(wx.Pen('blue', 1))
-        dc.DrawLines(ptsB)
-        dc.SetPen(wx.Pen('red', 1))
-        dc.DrawLines(ptsR)
 
     def onMove(self, event):
         pos = event.GetPosition();
@@ -125,9 +235,9 @@ class MyFrame(wx.Frame):
         if self.isPointInputted is True:
             self.Refresh()
 
+
 if __name__ == '__main__':
     app = wx.App(False)
     frame = MyFrame()
     frame.Show(True)
-    np.random.seed(1)
     app.MainLoop()
