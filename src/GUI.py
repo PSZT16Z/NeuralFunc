@@ -15,8 +15,9 @@ class MyFrame(wx.Frame):
         panel.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
         panel.Bind(wx.EVT_PAINT, self.on_paint)
         panel.Bind(wx.EVT_MOTION, self.on_move)
+        self.approximation = []
         self.nn = NeuralNetwork([1,10,10,2], 0, self.GetSize().GetWidth())
-        self.nn.start_online_training()
+        #self.update_approximation()
 
     def onLeftClick(self, event):
         pos = event.GetPosition()
@@ -34,6 +35,10 @@ class MyFrame(wx.Frame):
             self.posx1 = self.posy1 = self.posy2 = None
             self.Refresh()
 
+    def update_approximation(self):
+        self.approximation = self.nn.predict(list(range(self.GetSize().GetWidth())))
+        self.Refresh()
+
     def on_paint(self, event):
         dc = wx.PaintDC(event.GetEventObject())
         dc.SetPen(wx.Pen('blue', 1, wx.PENSTYLE_DOT))
@@ -50,8 +55,7 @@ class MyFrame(wx.Frame):
             dc.DrawCircle(val[0], val[1], 2)
             dc.SetPen(wx.Pen('red'))
             dc.DrawCircle(val[0], val[2], 2)
-        points = self.nn.predict(list(range(self.GetSize().GetWidth())))
-        for i, val in enumerate(points):
+        for i, val in enumerate(self.approximation):
             dc.SetPen(wx.Pen('blue'))
             dc.DrawPoint(i, val[0])
             dc.SetPen(wx.Pen('red'))

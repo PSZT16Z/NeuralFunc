@@ -1,7 +1,10 @@
 import numpy as np
+import threading
 
-class NeuralNetwork:
+class NeuralNetwork(threading.Thread):
     def __init__(self, layers, minimum, maximum):
+        threading.Thread.__init__(self)
+        self.daemon = True
         self.minimum = minimum
         self.maximum = maximum
         self.no_of_layers = len(layers)
@@ -10,6 +13,8 @@ class NeuralNetwork:
                 (2 * np.random.random((layers[i],val)) - 1) 
                 for i, val in enumerate(layers[1:])]
         self.dataset = []
+        self.lock = threading.Lock()
+        self.start()
 
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
@@ -47,32 +52,36 @@ class NeuralNetwork:
         for i in xrange(n-2, -1, -1):
             self.weights[i] += layers[i].T.dot(l_delta[i+1])
 
-    def train(self, dataset):
+    def train(self):
         if self.dataset:
+            self.lock.acquire()
             n = self.no_of_layers
-            dataset = self.normalize(np.asarray(dataset, dtype=float))
+            dataset = self.normalize(np.asarray(self.dataset, dtype=float))
             layers = self.forward_pass(dataset)
             l_delta = self.compute_error(dataset, layers)
             self.back_propagate(layers, l_delta)
+            self.lock.release()
         
     def predict(self, dataset):
-        #TODO mutex
         dataset = self.normalize(np.asarray(dataset, dtype=float))
         result = []
         layers = [None] * self.no_of_layers
+        self.lock.acquire()
         for val in dataset:
             layers[0] = np.asarray(float(val))
             for i in xrange(1, self.no_of_layers):
                 layers[i] = self.sigmoid(np.dot(layers[i-1], self.weights[i-1]))
             result.append(layers[self.no_of_layers-1][0])
+        self.lock.release()
         return self.denormalize(np.asarray(result)).tolist()
 
-    def start_online_training(self):
-        #TODO start separate thread and train in loop
-        self.train(self.dataset)
+    def run(self):
+        while True:
+            self.train()
 
     def update_dataset(self, dataset):
-        #TODO mutex
         #TODO validate dataset against layers structure (# of in and out values)
-        self.dataset = dataset
+        self.lock.acquire()
+        self.dataset = list(dataset)
+        self.lock.release()
 
