@@ -9,6 +9,7 @@ class NeuralNetwork:
         self.weights = [
                 (2 * np.random.random((layers[i],val)) - 1) 
                 for i, val in enumerate(layers[1:])]
+        self.dataset = []
 
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
@@ -47,14 +48,15 @@ class NeuralNetwork:
             self.weights[i] += layers[i].T.dot(l_delta[i+1])
 
     def train(self, dataset):
-        n = self.no_of_layers
-        dataset = self.normalize(np.asarray(dataset, dtype=float))
-        for j in xrange(10000):
+        if self.dataset:
+            n = self.no_of_layers
+            dataset = self.normalize(np.asarray(dataset, dtype=float))
             layers = self.forward_pass(dataset)
             l_delta = self.compute_error(dataset, layers)
             self.back_propagate(layers, l_delta)
         
     def predict(self, dataset):
+        #TODO mutex
         dataset = self.normalize(np.asarray(dataset, dtype=float))
         result = []
         layers = [None] * self.no_of_layers
@@ -65,4 +67,12 @@ class NeuralNetwork:
             result.append(layers[self.no_of_layers-1][0])
         return self.denormalize(np.asarray(result)).tolist()
 
+    def start_online_training(self):
+        #TODO start separate thread and train in loop
+        self.train(self.dataset)
+
+    def update_dataset(self, dataset):
+        #TODO mutex
+        #TODO validate dataset against layers structure (# of in and out values)
+        self.dataset = dataset
 

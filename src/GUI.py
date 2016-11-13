@@ -1,5 +1,5 @@
 import wx
-import NeuralNetwork
+from NeuralNetwork import NeuralNetwork
 
 class MyFrame(wx.Frame):
     posx1 = None
@@ -15,7 +15,8 @@ class MyFrame(wx.Frame):
         panel.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
         panel.Bind(wx.EVT_PAINT, self.on_paint)
         panel.Bind(wx.EVT_MOTION, self.on_move)
-        self.nn = NeuralNetwork.NeuralNetwork([1,10,10,2], 0, self.GetSize().GetWidth())
+        self.nn = NeuralNetwork([1,10,10,2], 0, self.GetSize().GetWidth())
+        self.nn.start_online_training()
 
     def onLeftClick(self, event):
         pos = event.GetPosition()
@@ -29,7 +30,7 @@ class MyFrame(wx.Frame):
             pos = event.GetPosition()
             self.posy2 = pos.y
             self.points.append([self.posx1, self.posy1, self.posy2])
-            self.nn.train(self.points)
+            self.nn.update_dataset(self.points)
             self.posx1 = self.posy1 = self.posy2 = None
             self.Refresh()
 
@@ -49,13 +50,12 @@ class MyFrame(wx.Frame):
             dc.DrawCircle(val[0], val[1], 2)
             dc.SetPen(wx.Pen('red'))
             dc.DrawCircle(val[0], val[2], 2)
-        if len(self.points) > 0:
-            points = self.nn.predict(list(range(self.GetSize().GetWidth())))
-            for i, val in enumerate(points):
-                dc.SetPen(wx.Pen('blue'))
-                dc.DrawPoint(i, val[0])
-                dc.SetPen(wx.Pen('red'))
-                dc.DrawPoint(i, val[1])
+        points = self.nn.predict(list(range(self.GetSize().GetWidth())))
+        for i, val in enumerate(points):
+            dc.SetPen(wx.Pen('blue'))
+            dc.DrawPoint(i, val[0])
+            dc.SetPen(wx.Pen('red'))
+            dc.DrawPoint(i, val[1])
 
     def on_move(self, event):
         if self.isPainting is True:
