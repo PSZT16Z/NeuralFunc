@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import threading
 
 class NeuralNetwork(threading.Thread):
@@ -14,7 +15,6 @@ class NeuralNetwork(threading.Thread):
                 for i, val in enumerate(layers[1:])]
         self.dataset = []
         self.lock = threading.Lock()
-        self.start()
 
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
@@ -78,6 +78,10 @@ class NeuralNetwork(threading.Thread):
     def run(self):
         while True:
             self.train()
+            time.sleep(0.0001)
+
+    def start_online_training(self):
+        self.start()
 
     def update_dataset(self, dataset):
         #TODO validate dataset against layers structure (# of in and out values)
