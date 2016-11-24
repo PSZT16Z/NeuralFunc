@@ -50,14 +50,14 @@ class NeuralNetwork(threading.Thread):
             self.weights[i] += layers[i].T.dot(l_delta[i+1])
 
     def train(self):
+        self.lock.acquire()
         if self.dataset:
-            self.lock.acquire()
             n = self.no_of_layers
             dataset = self.normalize(np.asarray(self.dataset, dtype=float))
             layers = self.forward_pass(dataset)
             l_delta = self.compute_error(dataset, layers)
             self.back_propagate(layers, l_delta)
-            self.lock.release()
+        self.lock.release()
         
     def predict(self, dataset):
         dataset = self.normalize(np.asarray(dataset, dtype=float))
@@ -74,7 +74,6 @@ class NeuralNetwork(threading.Thread):
 
     def run(self):
         while True:
-            #for _ in xrange(5000):
             self.train()
             time.sleep(0.0001)
 
@@ -100,6 +99,6 @@ class NeuralNetwork(threading.Thread):
                 return
         self.no_of_layers = len(layerList)
         self.weights = [
-                (2 * np.random.random((layerList[i],val)) - 1)
-                for i, val in enumerate(layerList[1:])]
+            (2 * np.random.random((layerList[i], val)) - 1)
+            for i, val in enumerate(layerList[1:])]
         self.lock.release()
