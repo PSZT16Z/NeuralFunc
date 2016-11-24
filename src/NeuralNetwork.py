@@ -8,13 +8,10 @@ class NeuralNetwork(threading.Thread):
         self.daemon = True
         self.minimum = minimum
         self.maximum = maximum
-        self.no_of_layers = len(layers)
         np.random.seed(1)
-        self.weights = [
-                (2 * np.random.random((layers[i],val)) - 1) 
-                for i, val in enumerate(layers[1:])]
-        self.dataset = []
         self.lock = threading.Lock()
+        self.restructure(layers)
+        self.dataset = []
 
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
@@ -77,6 +74,7 @@ class NeuralNetwork(threading.Thread):
 
     def run(self):
         while True:
+            #for _ in xrange(5000):
             self.train()
             time.sleep(0.0001)
 
@@ -89,3 +87,19 @@ class NeuralNetwork(threading.Thread):
         self.dataset = list(dataset)
         self.lock.release()
 
+    def append_dataset(self, data):
+        self.lock.acquire()
+        self.dataset.append(data)
+        self.lock.release()
+
+    def restructure(self, layerList):
+        self.lock.acquire()
+        for val in layerList:
+            if val is None or val <= 0:
+                self.lock.release()
+                return
+        self.no_of_layers = len(layerList)
+        self.weights = [
+                (2 * np.random.random((layerList[i],val)) - 1)
+                for i, val in enumerate(layerList[1:])]
+        self.lock.release()
