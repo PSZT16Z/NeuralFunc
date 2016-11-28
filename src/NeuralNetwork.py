@@ -9,7 +9,7 @@ class NeuralNetwork(threading.Thread):
         threading.Thread.__init__(self)
         self.daemon = True
         self.ONLINE_TRAINING = False
-        self.LEARNING_RATE = 0.15
+        self.LEARNING_RATE = 1.5
         self.minimum = minimum
         self.maximum = maximum
         np.random.seed(1)
@@ -41,7 +41,7 @@ class NeuralNetwork(threading.Thread):
         n = self.no_of_layers
         l_error = [None] * n
         l_delta = [None] * n
-        l_error[n-1] = dataset[:,1:3] - layers[n-1]
+        l_error[n-1] = layers[n-1] - dataset[:,1:3]
         for i in xrange(n-1, 1, -1):
             l_delta[i] = l_error[i] *self.sigmoid_deriv(layers[i])
             l_error[i-1] = l_delta[i].dot(self.weights[i-1].T)
@@ -51,7 +51,7 @@ class NeuralNetwork(threading.Thread):
     def back_propagate(self, layers, l_delta):
         n = self.no_of_layers
         for i in xrange(n-2, -1, -1):
-            self.weights[i] += layers[i].T.dot(l_delta[i+1])
+            self.weights[i] -= self.LEARNING_RATE * layers[i].T.dot(l_delta[i+1])
 
     def train(self, dataset):
         self.lock.acquire()
