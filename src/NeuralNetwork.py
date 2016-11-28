@@ -9,6 +9,7 @@ class NeuralNetwork(threading.Thread):
         threading.Thread.__init__(self)
         self.daemon = True
         self.ONLINE_TRAINING = False
+        self.LEARNING_RATE = 0.15
         self.minimum = minimum
         self.maximum = maximum
         np.random.seed(1)
@@ -54,7 +55,6 @@ class NeuralNetwork(threading.Thread):
 
     def train(self, dataset):
         self.lock.acquire()
-        print dataset
         if dataset:
             n = self.no_of_layers
             dataset = self.normalize(np.asarray(dataset, dtype=float))
