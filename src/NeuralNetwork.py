@@ -74,7 +74,7 @@ class NeuralNetwork(threading.Thread):
                 self.train_online()
             else:
                 self.train(self.dataset)
-            time.sleep(0.0001)
+            time.sleep(0.00001)
 
     def start_online_training(self):
         self.ONLINE_TRAINING = True
