@@ -1,11 +1,14 @@
 import numpy as np
 import time
+import random
 import threading
+
 
 class NeuralNetwork(threading.Thread):
     def __init__(self, layers, minimum, maximum):
         threading.Thread.__init__(self)
         self.daemon = True
+        self.ONLINE_TRAINING = False
         self.minimum = minimum
         self.maximum = maximum
         np.random.seed(1)
@@ -49,16 +52,34 @@ class NeuralNetwork(threading.Thread):
         for i in xrange(n-2, -1, -1):
             self.weights[i] += layers[i].T.dot(l_delta[i+1])
 
-    def train(self):
+    def train(self, dataset):
         self.lock.acquire()
-        if self.dataset:
+        print dataset
+        if dataset:
             n = self.no_of_layers
-            dataset = self.normalize(np.asarray(self.dataset, dtype=float))
+            dataset = self.normalize(np.asarray(dataset, dtype=float))
             layers = self.forward_pass(dataset)
             l_delta = self.compute_error(dataset, layers)
             self.back_propagate(layers, l_delta)
         self.lock.release()
-        
+
+    def train_online(self):
+        if self.dataset:
+            datapoint = [self.dataset[random.randint(0, len(self.dataset) - 1)]]
+            self.train(datapoint)
+
+    def run(self):
+        while True:
+            if self.ONLINE_TRAINING:
+                self.train_online()
+            else:
+                self.train(self.dataset)
+            time.sleep(0.0001)
+
+    def start_online_training(self):
+        self.ONLINE_TRAINING = True
+        self.start()
+
     def predict(self, dataset):
         dataset = self.normalize(np.asarray(dataset, dtype=float))
         result = []
@@ -71,14 +92,6 @@ class NeuralNetwork(threading.Thread):
             result.append(layers[self.no_of_layers-1][0])
         self.lock.release()
         return self.denormalize(np.asarray(result)).tolist()
-
-    def run(self):
-        while True:
-            self.train()
-            time.sleep(0.0001)
-
-    def start_online_training(self):
-        self.start()
 
     def update_dataset(self, dataset):
         #TODO validate dataset against layers structure (# of in and out values)
