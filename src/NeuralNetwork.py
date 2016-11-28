@@ -99,10 +99,17 @@ class NeuralNetwork(threading.Thread):
         self.dataset = list(dataset)
         self.lock.release()
 
-    def append_dataset(self, data):
+    def append_datapoints(self, data):
         self.lock.acquire()
         self.dataset.append(data)
         self.lock.release()
+
+    def remove_datapoints(self, data):
+        self.lock.acquire()
+        if data in self.dataset:
+            del self.dataset[self.dataset.index(data)]
+        self.lock.release()
+
 
     def restructure(self, layerList):
         self.lock.acquire()

@@ -78,12 +78,11 @@ class MyFrame(wx.Frame):
                 break
 
         if idx > -1:
+            self.nn.remove_datapoints([ self.points1[idx][0],
+                                        self.points1[idx][1],
+                                        self.points2[idx][1] ])
             del self.points1[idx]
             del self.points2[idx]
-            newData = []
-            for i in range(len(self.points1)):
-                newData.append([ self.points1[i][0], self.points1[i][1], self.points2[i][1] ])
-            self.nn.update_dataset(newData)
         self.isDeleting = False
 
     def onRightClick(self, event):
@@ -93,7 +92,7 @@ class MyFrame(wx.Frame):
             self.posy2 = pos.y
             self.points1.append([self.posx1, self.posy1, self.circleRadius, self.circleRadius])
             self.points2.append([self.posx1, self.posy2, self.circleRadius, self.circleRadius])
-            self.nn.append_dataset([self.posx1, self.posy1, self.posy2])
+            self.nn.append_datapoints([self.posx1, self.posy1, self.posy2])
             self.posx1 = self.posy1 = self.posy2 = None
             self.Refresh()
         else:
