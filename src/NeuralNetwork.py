@@ -2,106 +2,47 @@ import numpy as np
 import time
 import random
 import threading
-
+from NNStructure import NNStructure
 
 class NeuralNetwork(threading.Thread):
-    def __init__(self, layers, minimum, maximum):
+    def __init__(self, layers, minimum, maximum, learningRate):
         threading.Thread.__init__(self)
         self.daemon = True
         self.ONLINE_TRAINING = False
-        self.LEARNING_RATE = 10
+        self.lock = threading.Lock()
         self.minimum = np.float(minimum)
         self.maximum = np.float(maximum)
-        np.random.seed(1)
-        self.lock = threading.Lock()
-        self.restructure(layers)
+        self.LEARNING_RATE = learningRate
         self.dataIn = []
         self.dataOut = []
+        self.restructure(layers)
 
-    def restructure(self, layerList):
+    def restructure(self, layers):
         self.lock.acquire()
-        for val in layerList:
-            if val is None or val <= 0:
-                self.lock.release()
-                return
-        self.no_of_layers = len(layerList)
-        self.weights = [
-            (2 * np.random.random((layerList[i], val)) - 1)
-            for i, val in enumerate(layerList[1:])]
+        self.nns = NNStructure(layers, self.minimum, self.maximum, self.LEARNING_RATE)
         self.lock.release()
-
-    def sigmoid(self, x):
-        return 1/(1+np.exp(-x))
-
-    def sigmoid_deriv(self, x):
-        return x*(1-x)
-    
-    def normalize(self, data):
-        data = np.asarray(data, dtype = np.float)
-        return (data - self.minimum) / (self.maximum - self.minimum)
-
-    def denormalize(self, data):
-        data = np.asarray(data, dtype = np.float)
-        return (data * (self.maximum - self.minimum)) + self.minimum
-
-    def forward_pass(self, dataIn):
-        n = self.no_of_layers
-        layers = [None] * n
-        layers[0] = np.asarray(dataIn)
-        for i in xrange(1, n):
-            layers[i] = self.sigmoid(np.dot(layers[i-1], self.weights[i-1]))
-        return layers
-
-    def compute_error(self, dataOut, layers):
-        n = self.no_of_layers
-        l_error = [None] * n
-        l_delta = [None] * n
-        l_error[n-1] = layers[n-1] - np.asarray(dataOut)
-        for i in xrange(n-1, 1, -1):
-            l_delta[i] = l_error[i] *self.sigmoid_deriv(layers[i])
-            l_error[i-1] = l_delta[i].dot(self.weights[i-1].T)
-        l_delta[1] = l_error[1] * self.sigmoid_deriv(layers[1])
-        return l_delta
-    
-    def back_propagate(self, layers, l_delta):
-        n = self.no_of_layers
-        for i in xrange(n-2, -1, -1):
-            self.weights[i] -= self.LEARNING_RATE * layers[i].T.dot(l_delta[i+1])
-
-    def train(self, dataIn, dataOut):
-        self.lock.acquire()
-        if dataIn and dataOut:
-            n = self.no_of_layers
-            dataIn = self.normalize(dataIn)
-            dataOut = self.normalize(dataOut)
-            layers = self.forward_pass(dataIn)
-            l_delta = self.compute_error(dataOut, layers)
-            self.back_propagate(layers, l_delta)
-        self.lock.release()
-
-    def train_online(self):
-        if self.dataIn and self.dataOut:
-            idx = random.randint(0, len(self.dataIn) - 1)
-            self.train([self.dataIn[idx] ], [self.dataOut[idx] ])
 
     def run(self):
         while True:
-            if self.ONLINE_TRAINING:
-                self.train_online()
-            else:
-                self.train(self.dataIn, self.dataOut)
-            time.sleep(0.00001)
+            if self.dataIn and self.dataOut:
+                self.lock.acquire()
+                if self.ONLINE_TRAINING:
+                    idx = random.randint(0, len(self.dataIn) - 1)
+                    self.nns.train([self.dataIn[idx] ], [self.dataOut[idx] ])
+                else:
+                    self.nns.train(self.dataIn, self.dataOut)
+                self.lock.release()
+                time.sleep(0.00001)
 
     def start_online_training(self):
         self.ONLINE_TRAINING = True
         self.start()
 
     def predict(self, dataIn):
-        dataIn = self.normalize(dataIn)
         self.lock.acquire()
-        layers = self.forward_pass(dataIn)
+        result = self.nns.predict(dataIn)
         self.lock.release()
-        return self.denormalize(layers[self.no_of_layers-1])
+        return result
 
     def update_dataset(self, dataIn, dataOut):
         #TODO validate dataset against layers structure (# of in and out values)
@@ -123,3 +64,4 @@ class NeuralNetwork(threading.Thread):
         if pointOut in self.dataOut:
             del self.dataOut[self.dataOut.index(pointOut)]
         self.lock.release()
+

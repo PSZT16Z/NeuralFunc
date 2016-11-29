@@ -44,7 +44,7 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.onClose)
         self.approximation = []
         self.lock = threading.Lock()
-        self.nn = NeuralNetwork([1,10,10,2], 0, self.GetSize().GetWidth())
+        self.nn = NeuralNetwork([1,10,10,2], 0, self.GetSize().GetWidth(), 15)
         self.nn.start_online_training()
         self.predict_thread = threading.Thread(None, self.update_approximation)
         self.predict_thread.daemon = True
