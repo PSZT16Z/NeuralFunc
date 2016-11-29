@@ -17,6 +17,18 @@ class NeuralNetwork(threading.Thread):
         self.restructure(layers)
         self.dataset = []
 
+    def restructure(self, layerList):
+        self.lock.acquire()
+        for val in layerList:
+            if val is None or val <= 0:
+                self.lock.release()
+                return
+        self.no_of_layers = len(layerList)
+        self.weights = [
+            (2 * np.random.random((layerList[i], val)) - 1)
+            for i, val in enumerate(layerList[1:])]
+        self.lock.release()
+
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
 
@@ -110,15 +122,3 @@ class NeuralNetwork(threading.Thread):
             del self.dataset[self.dataset.index(data)]
         self.lock.release()
 
-
-    def restructure(self, layerList):
-        self.lock.acquire()
-        for val in layerList:
-            if val is None or val <= 0:
-                self.lock.release()
-                return
-        self.no_of_layers = len(layerList)
-        self.weights = [
-            (2 * np.random.random((layerList[i], val)) - 1)
-            for i, val in enumerate(layerList[1:])]
-        self.lock.release()
