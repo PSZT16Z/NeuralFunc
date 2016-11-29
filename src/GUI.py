@@ -25,7 +25,8 @@ class MyFrame(wx.Frame):
     menuIdTitle = {}
 
     def __init__(self):
-        self.frame = wx.Frame.__init__(self, None, title='Aproksymacja funkcji dwuwartosciowej',
+        self.frame = wx.Frame.__init__(self, None, 
+                title='Aproksymacja funkcji dwuwartosciowej',
                 size=(500,500))
         self.panel = wx.Panel(self, -1)
         menuTitles = [ "Plot colours",
@@ -53,7 +54,8 @@ class MyFrame(wx.Frame):
         while self.isRunning:
             time.sleep(0.1)
             self.lock.acquire()
-            self.approximation = self.nn.predict(list(range(self.GetSize().GetWidth())))
+            self.approximation = self.nn.predict(
+                    list([x] for x in range(self.GetSize().GetWidth())))
             self.lock.release()
             wx.CallAfter(self.Refresh)
 
@@ -78,8 +80,8 @@ class MyFrame(wx.Frame):
                 break
 
         if idx > -1:
-            self.nn.remove_datapoints([ self.points1[idx][0],
-                                        self.points1[idx][1],
+            self.nn.remove_datapoints([ self.points1[idx][0] ] ,
+                                      [ self.points1[idx][1],
                                         self.points2[idx][1] ])
             del self.points1[idx]
             del self.points2[idx]
@@ -92,7 +94,7 @@ class MyFrame(wx.Frame):
             self.posy2 = pos.y
             self.points1.append([self.posx1, self.posy1, self.circleRadius, self.circleRadius])
             self.points2.append([self.posx1, self.posy2, self.circleRadius, self.circleRadius])
-            self.nn.append_datapoints([self.posx1, self.posy1, self.posy2])
+            self.nn.append_datapoints([[self.posx1]], [[self.posy1, self.posy2]])
             self.posx1 = self.posy1 = self.posy2 = None
             self.Refresh()
         else:
@@ -164,7 +166,7 @@ class MyFrame(wx.Frame):
     def resetCb(self, event):
         self.lock.acquire()
         self.nn.restructure([1,10,10,2])
-        self.nn.update_dataset([])
+        self.nn.update_dataset([], [])
         del self.points1[:]
         del self.points2[:]
         self.lock.release()
