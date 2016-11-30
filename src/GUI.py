@@ -21,20 +21,26 @@ class MyFrame(wx.Frame):
         wx.Colour(  0, 153,   0),
         wx.Colour(102, 255, 102) ]
     titles = ['Pnt1', 'Plot1', 'Pnt2', 'Plot2']
-    
-    menuIdTitle = {}
+    menuCbTitle = []    
 
     def __init__(self):
         self.frame = wx.Frame.__init__(self, None, 
                 title='Aproksymacja funkcji dwuwartosciowej',
-                size=(500,500))
+                size=(800,500))
         self.panel = wx.Panel(self, -1)
         menuTitles = [ "Plot colours",
+                       "Learning rate",
                        "NN structure",
                        "Reset",
-                       "Quit" ]
-        for title in menuTitles:
-            self.menuIdTitle[wx.NewId()] = title
+                       "Quit"]
+        menuCb = [self.colorSelectCb,
+                      self.setLearningRateCb,
+                      self.restructureCb, 
+                      self.resetCb, 
+                      self.closeCb ]
+        for i in range(len(menuTitles)):
+            idx = wx.NewId()
+            self.menuCbTitle.append([idx, menuTitles[i], menuCb[i]])
         self.panel.Bind(wx.EVT_LEFT_DOWN, self.onLeftClick)
         self.panel.Bind(wx.EVT_MIDDLE_DOWN, self.onMidDown)
         self.panel.Bind(wx.EVT_MIDDLE_UP, self.onMidUp)
@@ -92,13 +98,19 @@ class MyFrame(wx.Frame):
             self.isPainting = False
             pos = event.GetPosition()
             self.posy2 = pos.y
-            self.points1.append([self.posx1, self.posy1, self.circleRadius, self.circleRadius])
-            self.points2.append([self.posx1, self.posy2, self.circleRadius, self.circleRadius])
+            self.points1.append([self.posx1, 
+                                 self.posy1, 
+                                 self.circleRadius, 
+                                 self.circleRadius])
+            self.points2.append([self.posx1, 
+                                 self.posy2, 
+                                 self.circleRadius, 
+                                 self.circleRadius])
             self.nn.append_datapoints([[self.posx1]], [[self.posy1, self.posy2]])
             self.posx1 = self.posy1 = self.posy2 = None
             self.Refresh()
         else:
-            menu = GuiUtilities.RmbMenu(self, self.menuIdTitle, [self.colorSelectCb, self.restructureCb, self.resetCb, self.closeCb])
+            menu = GuiUtilities.RmbMenu(self, self.menuCbTitle)
             self.PopupMenu(menu, event.GetPosition())
             menu.Destroy()
 
@@ -171,6 +183,18 @@ class MyFrame(wx.Frame):
         del self.points2[:]
         self.lock.release()
 
+    def setLearningRateCb(self, event):
+        dlg = wx.TextEntryDialog(self.frame, 'Enter new learning rate',
+                                            'NN learning rate edit')
+        dlg.SetValue = '1'
+        if dlg.ShowModal() == wx.ID_OK:
+            try:
+                rate = float(dlg.GetValue())
+                dlg.Destroy()
+                self.nn.setLearningRate(rate)
+            except Exception as e:
+                print(e)
+        
     def restructureCb(self, event):
         dlg = wx.TextEntryDialog(self.frame, 'Enter layer list for NN', 'NN structure edit')
         dlg.SetValue = '10, 10'

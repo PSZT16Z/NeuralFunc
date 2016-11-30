@@ -12,14 +12,20 @@ class NeuralNetwork(threading.Thread):
         self.lock = threading.Lock()
         self.minimum = np.float(minimum)
         self.maximum = np.float(maximum)
-        self.LEARNING_RATE = learningRate
         self.dataIn = []
         self.dataOut = []
-        self.restructure(layers)
+        self.lock.acquire()
+        self.nns = NNStructure(layers, self.minimum, self.maximum, learningRate)
+        self.lock.release()
 
     def restructure(self, layers):
         self.lock.acquire()
-        self.nns = NNStructure(layers, self.minimum, self.maximum, self.LEARNING_RATE)
+        self.nns.restructure(layers)
+        self.lock.release()
+
+    def setLearningRate(self, rate):
+        self.lock.acquire()
+        self.nns.setLearningRate(rate)
         self.lock.release()
 
     def run(self):

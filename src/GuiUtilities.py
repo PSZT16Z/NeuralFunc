@@ -1,14 +1,13 @@
 import wx
 
 class RmbMenu(wx.Menu):
-    def __init__(self, parent, idTitleMap, cbList):
-        assert(len(idTitleMap) == len(cbList))
+    def __init__(self, parent, idTitleMap):
         super(RmbMenu, self).__init__()
         self.parent = parent
-        for cbNo,(id,title) in enumerate(idTitleMap.items()):
-            item = wx.MenuItem(self, id, title)
+        for i in range(len(idTitleMap)):
+            item = wx.MenuItem(self, idTitleMap[i][0], idTitleMap[i][1])
             self.AppendItem(item)
-            self.Bind(wx.EVT_MENU, cbList[cbNo], item)
+            self.Bind(wx.EVT_MENU, idTitleMap[i][2], item)
 
 class PlotColorDialog(wx.Dialog):
     def __init__(self, parent, colorList, titleList):

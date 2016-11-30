@@ -3,17 +3,23 @@ import random
 
 class NNStructure():
     def __init__(self, layerList, minimum, maximum, learningRate):
-        for val in layerList:
-            if val is None or val <= 0:
-                raise ValueError("invalid argument")
-        self.no_of_layers = len(layerList)
-        self.weights = [
-            (2 * np.random.random((layerList[i], val)) - 1)
-            for i, val in enumerate(layerList[1:])]
         np.random.seed(1)
         self.minimum = np.float(minimum)
         self.maximum = np.float(maximum)
         self.LEARNING_RATE = learningRate
+        self.restructure(layerList)
+
+    def restructure(self, layers):
+        for val in layers:
+            if val is None or val <= 0:
+                raise ValueError("invalid argument")
+        self.no_of_layers = len(layers)
+        self.weights = [
+            (2 * np.random.random((layers[i], val)) - 1)
+            for i, val in enumerate(layers[1:])]
+
+    def setLearningRate(self, rate):
+        self.LEARNING_RATE = rate
 
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
