@@ -2,12 +2,10 @@ import numpy as np
 import random
 
 class NNStructure():
-
-    activationDict = {'l': self.lin, 's': self.sigmoid, 't':self.tanh}
-    defaultHiddenAct = self.sigmoid
-    defaultOuterAct = self.lin
-    
     def __init__(self, layerList, scaleMin, scaleMax, dataMin, dataMax, learningRate):
+        self.activationDict = {'l': self.lin, 's': self.sigmoid, 't':self.tanh}
+        self.defaultHiddenAct = self.sigmoid
+        self.defaultOuterAct = self.lin
         self.minimum = np.float(dataMin)
         self.maximum = np.float(dataMax)
         self.normMin = np.float(scaleMin)
