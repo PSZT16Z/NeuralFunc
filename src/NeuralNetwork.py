@@ -5,17 +5,15 @@ import threading
 from NNStructure import NNStructure
 
 class NeuralNetwork(threading.Thread):
-    def __init__(self, layers, minimum, maximum, learningRate):
+    def __init__(self, layers, scaleMin, scaleMax, dataMin, dataMax, learningRate):
         threading.Thread.__init__(self)
         self.daemon = True
         self.ONLINE_TRAINING = False
         self.lock = threading.Lock()
-        self.minimum = np.float(minimum)
-        self.maximum = np.float(maximum)
         self.dataIn = []
         self.dataOut = []
         self.lock.acquire()
-        self.nns = NNStructure(layers, self.minimum, self.maximum, learningRate)
+        self.nns = NNStructure(layers, scaleMin, scaleMax, dataMin, dataMax, learningRate)
         self.lock.release()
 
     def restructure(self, layers):
@@ -32,11 +30,12 @@ class NeuralNetwork(threading.Thread):
         while True:
             if self.dataIn and self.dataOut:
                 self.lock.acquire()
-                if self.ONLINE_TRAINING:
-                    idx = random.randint(0, len(self.dataIn) - 1)
-                    self.nns.train([self.dataIn[idx] ], [self.dataOut[idx] ])
-                else:
-                    self.nns.train(self.dataIn, self.dataOut)
+                if self.dataIn and self.dataOut:
+                    if self.ONLINE_TRAINING:
+                        idx = random.randint(0, len(self.dataIn) - 1)
+                        self.nns.train([self.dataIn[idx] ], [self.dataOut[idx] ])
+                    else:
+                        self.nns.train(self.dataIn, self.dataOut)
                 self.lock.release()
                 time.sleep(0.00001)
 

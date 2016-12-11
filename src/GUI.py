@@ -26,7 +26,7 @@ class MyFrame(wx.Frame):
     def __init__(self):
         self.frame = wx.Frame.__init__(self, None, 
                 title='Aproksymacja funkcji dwuwartosciowej',
-                size=(800,500))
+                size=(500,500))
         self.panel = wx.Panel(self, -1)
         menuTitles = [ "Plot colours",
                        "Learning rate",
@@ -50,7 +50,9 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.onClose)
         self.approximation = []
         self.lock = threading.Lock()
-        self.nn = NeuralNetwork([1,10,10,2], 0, self.GetSize().GetWidth(), 15)
+        normLimit = self.GetSize().GetWidth()
+        self.defaultLayerList = [(1, 't'), (10, 't'), (10, 't'), (2, 'l')]
+        self.nn = NeuralNetwork(self.defaultLayerList, -1.0, 1.0, 0, normLimit, 0.5)
         self.nn.start_online_training()
         self.predict_thread = threading.Thread(None, self.update_approximation)
         self.predict_thread.daemon = True
@@ -177,7 +179,7 @@ class MyFrame(wx.Frame):
 
     def resetCb(self, event):
         self.lock.acquire()
-        self.nn.restructure([1,10,10,2])
+        self.nn.restructure(self.defaultLayerList)
         self.nn.update_dataset([], [])
         del self.points1[:]
         del self.points2[:]
@@ -202,6 +204,7 @@ class MyFrame(wx.Frame):
             try:
                 layerList = [int(k) for k in dlg.GetValue().split(',')]
                 layerList = [1] + layerList + [2]
+                layerList = [(x, None) for x in layerList]
                 dlg.Destroy()
                 self.nn.restructure(layerList)
             except Exception as e:

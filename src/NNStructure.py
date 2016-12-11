@@ -2,72 +2,102 @@ import numpy as np
 import random
 
 class NNStructure():
-    def __init__(self, layerList, minimum, maximum, learningRate):
-        np.random.seed(1)
-        self.minimum = np.float(minimum)
-        self.maximum = np.float(maximum)
+
+    activationDict = {'l': self.lin, 's': self.sigmoid, 't':self.tanh}
+    defaultHiddenAct = self.sigmoid
+    defaultOuterAct = self.lin
+    
+    def __init__(self, layerList, scaleMin, scaleMax, dataMin, dataMax, learningRate):
+        self.minimum = np.float(dataMin)
+        self.maximum = np.float(dataMax)
+        self.normMin = np.float(scaleMin)
+        self.normMax = np.float(scaleMax)
+        self.scale = (self.normMax - self.normMin) / (self.maximum - self.minimum)
         self.LEARNING_RATE = learningRate
         self.restructure(layerList)
 
     def restructure(self, layers):
-        for val in layers:
+        for val, func in layers:
             if val is None or val <= 0:
                 raise ValueError("invalid argument")
         self.no_of_layers = len(layers)
-        self.weights = [
-            (2 * np.random.random((layers[i], val)) - 1)
-            for i, val in enumerate(layers[1:])]
+        self.weights = []
+        self.activFunc = [self.activationDict.get(layers[0][1], self.defaultHiddenAct)]
+        for i, (layerSize, activFunc) in enumerate(layers[1:-1]):
+            self.weights.append(np.random.uniform(-2.0, 2.0, (layers[i][0] + 1, layerSize + 1)))
+            self.activFunc.append(self.activationDict.get(activFunc, self.defaultHiddenAct))            
+        self.weights.append(np.random.uniform(-2.0, 2.0, (layers[-2][0] + 1, layers[-1][0])))
+        self.activFunc.append(self.activationDict.get(layers[-1][1], self.defaultOuterAct))
 
     def setLearningRate(self, rate):
         self.LEARNING_RATE = rate
 
-    def sigmoid(self, x):
-        return 1/(1+np.exp(-x))
+    def tanh(self, x, isDerivative = False):
+        tan = np.tanh(x)
+        if isDerivative:
+            return 1 - np.square(tan)
+        return tan
 
-    def sigmoid_deriv(self, x):
-        return x*(1-x)
+    def lin(self, x, isDerivative = False):
+        if isDerivative:
+            return np.ones_like(x)
+        return x
+
+    def sigmoid(self, x, isDerivative = False):
+        x = np.clip(x, -500, 500)
+        sig = 1 / (1 + np.exp(-x))
+        if isDerivative:
+            return np.multiply(sig, 1 - sig)
+        return sig
     
     def normalize(self, data):
         data = np.asarray(data, dtype = np.float)
-        return (data - self.minimum) / (self.maximum - self.minimum)
+        return self.scale * (data - self.minimum) + self.normMin
 
     def denormalize(self, data):
         data = np.asarray(data, dtype = np.float)
-        return (data * (self.maximum - self.minimum)) + self.minimum
+        return (data - self.normMin) / self.scale + self.minimum
 
     def forward_pass(self, dataIn):
+        dataIn = self.addBias(dataIn)
         n = self.no_of_layers
         layers = [None] * n
         layers[0] = np.asarray(dataIn)
         for i in xrange(1, n):
-            layers[i] = self.sigmoid(np.dot(layers[i-1], self.weights[i-1]))
+            signal = np.dot(layers[i-1], self.weights[i-1])
+            layers[i] = self.activFunc[i-1](signal)
         return layers
 
-    def compute_error(self, dataOut, layers):
+    def back_propagate(self, dataOut, layers):
         n = self.no_of_layers
         l_error = [None] * n
         l_delta = [None] * n
         l_error[n-1] = layers[n-1] - np.asarray(dataOut)
         for i in xrange(n-1, 1, -1):
-            l_delta[i] = l_error[i] *self.sigmoid_deriv(layers[i])
+            l_delta[i] = l_error[i] * self.activFunc[i](layers[i], True)
             l_error[i-1] = l_delta[i].dot(self.weights[i-1].T)
-        l_delta[1] = l_error[1] * self.sigmoid_deriv(layers[1])
+        l_delta[1] = l_error[1] * self.activFunc[1](layers[1], True)
         return l_delta
     
-    def back_propagate(self, layers, l_delta):
+    def update_weights(self, layers, l_delta):
         n = self.no_of_layers
         for i in xrange(n-2, -1, -1):
             self.weights[i] -= self.LEARNING_RATE * layers[i].T.dot(l_delta[i+1])
+
+    def addBias(self, data):
+        biased = np.ones([ data.shape[0], data.shape[1] + 1 ])
+        biased[:, :-1] = data
+        return biased
 
     def train(self, dataIn, dataOut):
         n = self.no_of_layers
         dataIn = self.normalize(dataIn)
         dataOut = self.normalize(dataOut)
         layers = self.forward_pass(dataIn)
-        l_delta = self.compute_error(dataOut, layers)
-        self.back_propagate(layers, l_delta)
+        l_delta = self.back_propagate(dataOut, layers)
+        self.update_weights(layers, l_delta)
 
     def predict(self, dataIn):
         dataIn = self.normalize(dataIn)
         layers = self.forward_pass(dataIn)
-        return self.denormalize(layers[self.no_of_layers-1])
+        return self.denormalize(layers[-1])
