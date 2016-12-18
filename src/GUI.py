@@ -187,8 +187,7 @@ class MyFrame(wx.Frame):
 
     def setLearningRateCb(self, event):
         dlg = wx.TextEntryDialog(self.frame, 'Enter new learning rate',
-                                            'NN learning rate edit')
-        dlg.SetValue = '1'
+                                            'NN learning rate edit', '0.1')
         if dlg.ShowModal() == wx.ID_OK:
             try:
                 rate = float(dlg.GetValue())
@@ -198,18 +197,11 @@ class MyFrame(wx.Frame):
                 print(e)
         
     def restructureCb(self, event):
-        dlg = wx.TextEntryDialog(self.frame, 'Enter layer list for NN', 'NN structure edit')
-        dlg.SetValue = '10, 10'
-        if dlg.ShowModal() == wx.ID_OK:
-            try:
-                layerList = [int(k) for k in dlg.GetValue().split(',')]
-                layerList = [1] + layerList + [2]
-                layerList = [(x, None) for x in layerList]
-                dlg.Destroy()
-                self.nn.restructure(layerList)
-            except Exception as e:
-                print(e)
-
+        hiddenLayers = GuiUtilities.getHiddenLayers(
+                self.frame, self.nn.nns.activationDict)
+        if hiddenLayers:
+            layerList = [(1,None)] + hiddenLayers + [(2,None)]
+            self.nn.restructure(layerList)
 
 if __name__ == '__main__':
     app = wx.App(False)
