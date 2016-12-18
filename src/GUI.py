@@ -51,7 +51,7 @@ class MyFrame(wx.Frame):
         self.approximation = []
         self.lock = threading.Lock()
         normLimit = self.GetSize().GetWidth()
-        self.defaultLayerList = [(1, 't'), (10, 't'), (10, 't'), (2, 'l')]
+        self.defaultLayerList = [(1, 'tanh'), (10, 'tanh'), (10, 'tanh'), (2, 'linear')]
         self.nn = NeuralNetwork(self.defaultLayerList, -1.0, 1.0, 0, normLimit, 0.5)
         self.nn.start_online_training()
         self.predict_thread = threading.Thread(None, self.update_approximation)
