@@ -76,11 +76,15 @@ class NNStructure():
             l_error[i-1] = l_delta[i].dot(self.weights[i-1].T)
         l_delta[1] = l_error[1] * self.activFunc[1](layers[1], True)
         return l_delta
+
+    def compute_gradient(self, layer, delta):
+        return layer.T.dot(delta)
     
     def update_weights(self, layers, l_delta):
         n = self.no_of_layers
         for i in xrange(n-2, -1, -1):
-            self.weights[i] -= self.LEARNING_RATE * layers[i].T.dot(l_delta[i+1])
+            self.weights[i] -= self.LEARNING_RATE * self.compute_gradient(
+                    layers[i], l_delta[i+1])
 
     def addBias(self, data):
         biased = np.ones([ data.shape[0], data.shape[1] + 1 ])
