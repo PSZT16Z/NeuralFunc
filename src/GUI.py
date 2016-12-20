@@ -179,7 +179,7 @@ class MyFrame(wx.Frame):
 
     def resetCb(self, event):
         self.lock.acquire()
-        self.nn.restructure(self.defaultLayerList)
+        self.nn.restructure(self.defaultLayerList,-1.0, 1.0)
         self.nn.update_dataset([], [])
         del self.points1[:]
         del self.points2[:]
@@ -187,7 +187,7 @@ class MyFrame(wx.Frame):
 
     def setLearningRateCb(self, event):
         dlg = wx.TextEntryDialog(self.frame, 'Enter new learning rate',
-                                            'NN learning rate edit', '0.1')
+                                            'Change network\'s learning rate', str(self.nn.getLearningRate()))
         if dlg.ShowModal() == wx.ID_OK:
             try:
                 rate = float(dlg.GetValue())
@@ -199,9 +199,17 @@ class MyFrame(wx.Frame):
     def restructureCb(self, event):
         hiddenLayers = GuiUtilities.getHiddenLayers(
                 self.frame, self.nn.nns.activationDict)
+        ranges = GuiUtilities.getNormalizationRange(self.frame)
+        normMin = 0
+        normMax = 1
+        if ranges:
+            normMin = ranges[0]
+            normMax = ranges[1]
+            
         if hiddenLayers:
-            layerList = [(1,None)] + hiddenLayers + [(2,None)]
-            self.nn.restructure(layerList)
+            firstLayerAct = hiddenLayers[0][1]
+            layerList = [(1, firstLayerAct)] + hiddenLayers + [(2, None)]
+            self.nn.restructure(layerList, normMin, normMax)
 
 if __name__ == '__main__':
     app = wx.App(False)

@@ -16,15 +16,18 @@ class NeuralNetwork(threading.Thread):
         self.nns = NNStructure(layers, scaleMin, scaleMax, dataMin, dataMax, learningRate)
         self.lock.release()
 
-    def restructure(self, layers):
+    def restructure(self, layers, scaleMin, scaleMax):
         self.lock.acquire()
-        self.nns.restructure(layers)
+        self.nns.restructure(layers, scaleMin, scaleMax)
         self.lock.release()
 
     def setLearningRate(self, rate):
         self.lock.acquire()
         self.nns.setLearningRate(rate)
         self.lock.release()
+
+    def getLearningRate(self):
+        return self.nns.getLearningRate()
 
     def run(self):
         while True:

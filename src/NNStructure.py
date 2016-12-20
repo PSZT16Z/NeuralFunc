@@ -3,32 +3,40 @@ import random
 
 class NNStructure():
     def __init__(self, layerList, scaleMin, scaleMax, dataMin, dataMax, learningRate):
-        self.activationDict = {'linear': self.lin, 'sigmoid': self.sigmoid, 'tanh':self.tanh}
-        self.defaultHiddenAct = self.sigmoid
+        self.activationDict = {'linear': self.lin, 'sigmoid': self.sigmoid, 'tanh':self.tanh, 'ReLU':self.relu, 'LeakyReLU':self.lrelu, 'sinus':self.sinus}
+        self.defaultHiddenAct = self.tanh
         self.defaultOuterAct = self.lin
+        self.minimum = dataMin
+        self.maximum = dataMax
+        self.learningRate = learningRate
+        self.restructure(layerList, scaleMin, scaleMax)
+
+    def restructure(self, layers, scaleMin, scaleMax):
+        for val, func in layers:
+            if val is None or val <= 0:
+                raise ValueError("invalid argument")
+        self.calculateScale(self.minimum, self.maximum, scaleMin, scaleMax)
+        self.no_of_layers = len(layers)
+        self.weights = []
+        self.activFunc = [self.activationDict.get(layers[0][1], self.defaultHiddenAct)]
+        for i, (layerSize, activFun) in enumerate(layers[1:-1]):
+            self.weights.append(np.random.uniform(-2.0, 2.0, (layers[i][0] + 1, layerSize + 1)))
+            self.activFunc.append(self.activationDict.get(activFun, self.defaultHiddenAct))            
+        self.weights.append(np.random.uniform(-2.0, 2.0, (layers[-2][0] + 1, layers[-1][0])))
+        self.activFunc.append(self.activationDict.get(layers[-1][1], self.defaultOuterAct))
+
+    def calculateScale(self, dataMin, dataMax, scaleMin, scaleMax):
         self.minimum = np.float(dataMin)
         self.maximum = np.float(dataMax)
         self.normMin = np.float(scaleMin)
         self.normMax = np.float(scaleMax)
         self.scale = (self.normMax - self.normMin) / (self.maximum - self.minimum)
-        self.LEARNING_RATE = learningRate
-        self.restructure(layerList)
-
-    def restructure(self, layers):
-        for val, func in layers:
-            if val is None or val <= 0:
-                raise ValueError("invalid argument")
-        self.no_of_layers = len(layers)
-        self.weights = []
-        self.activFunc = [self.activationDict.get(layers[0][1], self.defaultHiddenAct)]
-        for i, (layerSize, activFunc) in enumerate(layers[1:-1]):
-            self.weights.append(np.random.uniform(-2.0, 2.0, (layers[i][0] + 1, layerSize + 1)))
-            self.activFunc.append(self.activationDict.get(activFunc, self.defaultHiddenAct))            
-        self.weights.append(np.random.uniform(-2.0, 2.0, (layers[-2][0] + 1, layers[-1][0])))
-        self.activFunc.append(self.activationDict.get(layers[-1][1], self.defaultOuterAct))
 
     def setLearningRate(self, rate):
-        self.LEARNING_RATE = rate
+        self.learningRate = rate
+
+    def getLearningRate(self):
+        return self.learningRate
 
     def tanh(self, x, isDerivative = False):
         tan = np.tanh(x)
@@ -40,6 +48,26 @@ class NNStructure():
         if isDerivative:
             return np.ones_like(x)
         return x
+
+    def relu(self, x, isDerivative = False):
+        x = np.clip(x, -500, 500)
+        res = np.maximum(x, 0)
+        if isDerivative:
+            res[res > 0] = 1
+        return res
+
+    def lrelu(self, x, isDerivative = False):
+        x = np.clip(x, -500, 500)
+        if isDerivative:
+            res = np.maximum(x, 0.01)
+            res[res > 0.01] = 1            
+            return res
+        return np.maximum(x, 0.01*x)
+
+    def sinus(self, x, isDerivative = False):
+        if isDerivative:
+            return np.cos(x)
+        return np.sin(x)
 
     def sigmoid(self, x, isDerivative = False):
         x = np.clip(x, -500, 500)
@@ -83,7 +111,7 @@ class NNStructure():
     def update_weights(self, layers, l_delta):
         n = self.no_of_layers
         for i in xrange(n-2, -1, -1):
-            self.weights[i] -= self.LEARNING_RATE * self.compute_gradient(
+            self.weights[i] -= self.learningRate * self.compute_gradient(
                     layers[i], l_delta[i+1])
 
     def addBias(self, data):
